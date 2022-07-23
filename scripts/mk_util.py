@@ -25,6 +25,7 @@ def getenv(name, default):
     except:
         return default
 
+NUGET_VERSION=getenv("NUGET_VERSION", None)
 CXX=getenv("CXX", None)
 CC=getenv("CC", None)
 CPPFLAGS=getenv("CPPFLAGS", "")
@@ -555,19 +556,19 @@ def set_version(major, minor, build, revision):
             print("Set Assembly Version (BUILD):", VER_MAJOR, VER_MINOR, VER_BUILD, VER_TWEAK)
             return
 
-    # use parameters to set up version if not provided by script args            
+    # use parameters to set up version if not provided by script args
     VER_MAJOR = major
     VER_MINOR = minor
     VER_BUILD = build
     VER_TWEAK = revision
 
-    # update VER_TWEAK base on github     
+    # update VER_TWEAK base on github
     if GIT_DESCRIBE:
         branch = check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
         VER_TWEAK = int(check_output(['git', 'rev-list', '--count', 'HEAD']))
-    
+
     print("Set Assembly Version (DEFAULT):", VER_MAJOR, VER_MINOR, VER_BUILD, VER_TWEAK)
-    
+
 def get_version():
     return (VER_MAJOR, VER_MINOR, VER_BUILD, VER_TWEAK)
 
@@ -1723,7 +1724,7 @@ class DotNetDLLComponent(Component):
         core_csproj_str = """<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
     <DefineConstants>$(DefineConstants);DOTNET_CORE</DefineConstants>
     <DebugType>full</DebugType>
@@ -1747,7 +1748,7 @@ class DotNetDLLComponent(Component):
     <Compile Include="..\%s\*.cs;*.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
 
-</Project>""" % (version, key, self.to_src_dir)
+</Project>""" % (NUGET_VERSION, key, self.to_src_dir)
 
         mk_dir(os.path.join(BUILD_DIR, 'dotnet'))
         csproj = os.path.join('dotnet', 'z3.csproj')
@@ -1856,7 +1857,7 @@ class JavaDLLComponent(Component):
                           os.path.join('api', 'java', 'Native'))
             elif IS_OSX and IS_ARCH_ARM64:
                 out.write('\t$(SLINK) $(SLINK_OUT_FLAG)libz3java$(SO_EXT) $(SLINK_FLAGS) -arch arm64 %s$(OBJ_EXT) libz3$(SO_EXT)\n' %
-                          os.path.join('api', 'java', 'Native'))                
+                          os.path.join('api', 'java', 'Native'))
             else:
                 out.write('\t$(SLINK) $(SLINK_OUT_FLAG)libz3java$(SO_EXT) $(SLINK_FLAGS) %s$(OBJ_EXT) libz3$(SO_EXT)\n' %
                           os.path.join('api', 'java', 'Native'))
@@ -2852,7 +2853,7 @@ def update_version():
     revision = VER_TWEAK
 
     print("UpdateVersion:", get_full_version_string(major, minor, build, revision))
-    
+
     if major is None or minor is None or build is None or revision is None:
         raise MKException("set_version(major, minor, build, revision) must be used before invoking update_version()")
     if not ONLY_MAKEFILES:

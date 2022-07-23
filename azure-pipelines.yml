@@ -1,320 +1,409 @@
 
 variables:
-  cmakeJulia: '-DZ3_BUILD_JULIA_BINDINGS=True'
-  cmakeJava: '-DZ3_BUILD_JAVA_BINDINGS=True'
+  cmakeJulia: '-DZ3_BUILD_JULIA_BINDINGS=False'
+  cmakeJava: '-DZ3_BUILD_JAVA_BINDINGS=False'
   cmakeNet: '-DZ3_BUILD_DOTNET_BINDINGS=True'
-  cmakePy:  '-DZ3_BUILD_PYTHON_BINDINGS=True'
-  cmakeStdArgs: '-DZ3_BUILD_DOTNET_BINDINGS=True -DZ3_BUILD_JAVA_BINDINGS=True -DZ3_BUILD_PYTHON_BINDINGS=True -G "Ninja" ../'
+  cmakePy:  '-DZ3_BUILD_PYTHON_BINDINGS=False'
+  cmakeStdArgs: '-DZ3_BUILD_DOTNET_BINDINGS=True -DZ3_BUILD_JAVA_BINDINGS=False -DZ3_BUILD_PYTHON_BINDINGS=False -G "Ninja" ../'
   asanEnv: 'CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer" CFLAGS="${CFLAGS} -fsanitize=address -fno-omit-frame-pointer"'
   ubsanEnv: 'CXXFLAGS="${CXXFLAGS} -fsanitize=undefined" CFLAGS="${CFLAGS} -fsanitize=undefined"'
   msanEnv: 'CC=clang LDFLAGS="-L../libcxx/libcxx_msan/lib -lc++abi -Wl,-rpath=../libcxx/libcxx_msan/lib" CXX=clang++ CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -fsanitize-memory-track-origins -fsanitize=memory -fPIE -fno-omit-frame-pointer -g -O2" CFLAGS="${CFLAGS} -stdlib=libc -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer -g -O2"'
+  ReleaseVersion: '4.11.2'
+  NugetVersion: '$(ReleaseVersion)-ast-size-cancel-token-0003'
+  NugetDescription: 'Build on Azure: BuildId $(Build.BuildId) * native change: starting size of ast hash table, see also https://github.com/Z3Prover/z3/pull/5040 *  Dotnet: removed IDecRefQueue and dispose via cancellation token'
+
+stages:
+
+  - stage: Build
+    jobs:
+
+      - job: MacBuild
+        displayName: "macOS Build"
+        pool:
+          vmImage: "macOS-latest"
+        steps:
+          - task: PythonScript@0
+            displayName: Build
+            env:
+              NUGET_VERSION: $(NugetVersion)
+            inputs:
+              scriptSource: 'filepath'
+              scriptPath: scripts/mk_unix_dist.py
+              arguments: --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
+          - script: git clone https://github.com/z3prover/z3test z3test
+            displayName: 'Clone z3test'
+          - task: PythonScript@0
+            displayName: Test
+            inputs:
+              scriptSource: 'filepath'
+              scriptPath: z3test/scripts/test_benchmarks.py
+              arguments: build-dist/z3 z3test/regressions/smt2
+          - task: CopyFiles@2
+            inputs:
+              sourceFolder: dist
+              contents: '*.zip'
+              targetFolder: $(Build.ArtifactStagingDirectory)
+          - task: PublishPipelineArtifact@0
+            inputs:
+              artifactName: 'macOSBuild'
+              targetPath: $(Build.ArtifactStagingDirectory)
 
 
-# TBD: 
-#   test python bindings
-#   build documentation
-#   Asan, ubsan, msan
-# Disabled pending clang dependencies for std::unordered_map
 
-jobs:
+      - job: UbuntuBuild
+        displayName: "Ubuntu build"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: PythonScript@0
+            displayName: Build
+            env:
+              NUGET_VERSION: $(NugetVersion)
+            inputs:
+              scriptSource: 'filepath'
+              scriptPath: scripts/mk_unix_dist.py
+              arguments: --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
+          - script: git clone https://github.com/z3prover/z3test z3test
+            displayName: 'Clone z3test'
+          - task: PythonScript@0
+            displayName: Test
+            inputs:
+              scriptSource: 'filepath'
+              scriptPath: z3test/scripts/test_benchmarks.py
+              arguments: build-dist/z3 z3test/regressions/smt2
+          - task: CopyFiles@2
+            inputs:
+              sourceFolder: dist
+              contents: '*.zip'
+              targetFolder: $(Build.ArtifactStagingDirectory)
+          - task: PublishPipelineArtifact@0
+            inputs:
+              artifactName: 'UbuntuBuild'
+              targetPath: $(Build.ArtifactStagingDirectory)
 
-- job: "LinuxPythonDebug"
-  displayName: "Ubuntu build - python make - debug"
-  pool:
-    vmImage: "ubuntu-latest"
-  strategy:
-    matrix:
-      MT:
-        cmdLine: 'python scripts/mk_make.py -d --java --dotnet'
-        runRegressions: 'True'
-      ST:
-        cmdLine: './configure --single-threaded'
-        runRegressions: 'False'
-  steps:
-    - script: $(cmdLine)
-    - script: |
-        set -e
-        cd build
-        make -j3
-        make -j3 examples
-        make -j3 test-z3
-        cd ..
-    - template: scripts/test-z3.yml
-    - ${{if eq(variables['runRegressions'], 'True')}}:
-      - template: scripts/test-regressions.yml
+      - template: ./scripts/build-win-signed.yml
+        parameters:
+          ReleaseVersion: $(ReleaseVersion)
+          BuildArchitecture: 'x64'
+          NugetVersion: $(NugetVersion)
 
-- job: "Ubuntu20OCaml"
-  displayName: "Ubuntu 20 with OCaml"
-  pool:
-    vmImage: "Ubuntu-20.04"
-  steps:
-    - script: sudo apt-get install ocaml opam libgmp-dev
-    - script: opam init -y
-    - script: eval `opam config env`; opam install zarith ocamlfind -y
-    - script: eval `opam config env`; python scripts/mk_make.py --ml
-    - script: |
-        set -e
-        cd build
-        eval `opam config env`
-        make -j3
-        make -j3 examples
-        make -j3 test-z3
-        cd ..
-    - script: eval `opam config env`; ocamlfind install z3 build/api/ml/* -dll build/libz3.*
-    - template: scripts/test-z3.yml
-    - template: scripts/test-regressions.yml
-    - template: scripts/generate-doc.yml
+  # Creates Z3 packages in various formats
+  - stage: Package
+    jobs:
 
-
-- job: "Ubuntu20OCamlStatic"
-  displayName: "Ubuntu 20 with OCaml on z3-static"
-  pool:
-    vmImage: "Ubuntu-20.04"
-  steps:
-    - script: sudo apt-get install ocaml opam libgmp-dev
-    - script: opam init -y
-    - script: eval `opam config env`; opam install zarith ocamlfind -y
-    - script: eval `opam config env`; python scripts/mk_make.py --ml --staticlib
-    - script: |
-        set -e
-        cd build
-        eval `opam config env`
-        make -j3
-        make -j3 examples
-        make -j3 test-z3
-        cd ..
-    - script: eval `opam config env`; ocamlfind install z3-static build/api/ml/* build/libz3-static.a
-    - script: |
-        set -e
-        cd build
-        eval `opam config env`
-        make -j3
-        make -j3 _ex_ml_example_post_install
-        ./ml_example_static.byte
-        ./ml_example_static_custom.byte
-        ./ml_example_static
-        cd ..
-    - template: scripts/test-z3.yml
-    - template: scripts/test-regressions.yml
-    - template: scripts/generate-doc.yml
-
-- job: "LinuxMSan"
-  displayName: "Ubuntu build - cmake"
-  condition: eq(0,1) 
-  pool:
-    vmImage: "ubuntu-latest"
-  strategy:
-    matrix:
-      msanClang:
-        cmdLine: '$(msanEnv) cmake $(cmakeStdArgs)'
-        runUnitTest: 'True'
-        runExample: 'False' # Examples don't seem to build with MSAN
-  steps:
-    - script: sudo apt-get install ninja-build libc++-dev libc++abi-dev
-    - script: ./scripts/build_libcxx_msan.sh
-    - script: |
-        set -e
-        mkdir build
-        cd build
-        $(cmdLine)
-        ninja
-        ninja test-z3
-        cd ..
-    - script: |
-         cd build
-         export MSAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-         ./test-z3 -a
-         cd ..
-      condition: eq(variables['runUnitTest'], 'True')
-    - ${{if eq(variables['runExample'], 'True')}}:
-      - template: scripts/test-examples-cmake.yml
-#   - template: scripts/test-jupyter.yml
-#   - template: scripts/test-java-cmake.yml
-#   - template: scripts/test-regressions.yml
-  
-- job: "UbuntuCMake"
-  displayName: "Ubuntu build - cmake"
-  pool:
-    vmImage: "ubuntu-latest"
-  strategy:
-    matrix:
-      releaseClang:
-        setupCmd1: ''
-        setupCmd2: ''
-        buildCmd: 'CC=clang CXX=clang++ cmake -DCMAKE_BUILD_TYPE=Release $(cmakeStdArgs)'
-        runTests: 'True'
-      debugClang:
-        setupCmd1: 'julia -e "using Pkg; Pkg.add(PackageSpec(name=\"libcxxwrap_julia_jll\", version=\"0.7.0\"))"'
-        setupCmd2: 'JlCxxDir=$(julia -e "using libcxxwrap_julia_jll; print(dirname(libcxxwrap_julia_jll.libcxxwrap_julia_path))")'
-        buildCmd: 'CC=clang CXX=clang++ cmake -DJlCxx_DIR=$JlCxxDir/cmake/JlCxx $(cmakeJulia) $(cmakeStdArgs)'
-        runTests: 'True'
-      debugGcc:
-        setupCmd1: ''
-        setupCmd2: ''
-        buildCmd: 'CC=gcc CXX=g++ cmake $(cmakeStdArgs)'
-        runTests: 'True'
-      releaseSTGcc:
-        setupCmd1: ''
-        setupCmd2: ''
-        buildCmd: 'CC=gcc CXX=g++ cmake -DCMAKE_BUILD_TYPE=Release -DZ3_SINGLE_THREADED=ON $(cmakeStdArgs)'
-        runTests: 'True'        
-  steps:
-    - script: sudo apt-get install ninja-build 
-    - script: |
-        set -e
-        mkdir build
-        cd build
-        $(setupCmd1)
-        $(setupCmd2)
-        $(buildCmd)
-        ninja
-        ninja test-z3
-        cd ..
-    - script: |
-         cd build
-         ./test-z3 -a
-         cd ..
-      condition: eq(variables['runTests'], 'True')
-    - ${{if eq(variables['runTests'], 'True')}}:
-      - template: scripts/test-examples-cmake.yml
-#   - template: scripts/test-jupyter.yml
-#   - template: scripts/test-java-cmake.yml
-    - ${{if eq(variables['runTests'], 'True')}}:
-      - template: scripts/test-regressions.yml
-         
-
-- job: "WindowsLatest"
-  displayName: "Windows"
-  pool: 
-    vmImage: "windows-latest"
-  strategy:
-    matrix:
-      x86:
-        arch: 'x86'
-        setupCmd1: ''
-        setupCmd2: ''
-        setupCmd3: ''
-        bindings: '$(cmakePy)'
-        runTests: 'False'
-      x64:
-        arch: 'x64'
-        setupCmd1: 'julia -e "using Pkg; Pkg.add(PackageSpec(name=\"libcxxwrap_julia_jll\", version=\"0.7.0\"))"'
-        setupCmd2: 'julia -e "using libcxxwrap_julia_jll; print(dirname(libcxxwrap_julia_jll.libcxxwrap_julia_path))" > tmp.env'
-        setupCmd3: 'set /P JlCxxDir=<tmp.env'
-        bindings:  '-DJlCxx_DIR=%JlCxxDir%\..\lib\cmake\JlCxx $(cmakeJava) $(cmakeNet) $(cmakePy) -DCMAKE_BUILD_TYPE=RelWithDebInfo'
-        runTests:  'True'
-      arm64:
-        arch: 'amd64_arm64'
-        setupCmd1: ''
-        setupCmd2: ''
-        setupCmd3: ''
-        bindings: ''
-        runTests: 'False'
-  steps:
-    - script: md build
-    - script: |
-         cd build
-         $(setupCmd1)
-         $(setupCmd2)
-         $(setupCmd3)
-         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" $(arch)
-         cmake $(bindings) -G "NMake Makefiles" ../
-         nmake
-         cd ..
-    - script: |
-         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" $(arch)
-         pushd build\python
-         python z3test.py z3
-         python z3test.py z3num
-         popd
-         pushd build
-         nmake cpp_example
-         examples\cpp_example_build_dir\cpp_example.exe
-         nmake c_example
-         examples\c_example_build_dir\c_example.exe
-         nmake test-z3
-         test-z3.exe -a
-         popd
-      condition: eq(variables['runTests'], 'True')
-    - script: |
-         git clone https://github.com/z3prover/z3test z3test
-         python z3test\scripts\test_benchmarks.py build\z3.exe z3test\regressions\smt2
-      condition: eq(variables['runTests'], 'True')
-
-         
-- job: "MacOSPython"
-  displayName: "MacOS build"
-  pool:
-    vmImage: "macOS-latest"
-  steps:
-    - script: python scripts/mk_make.py -d --java --dotnet
-    - script: |
-        set -e
-        cd build
-        make -j3
-        make -j3 examples
-        make -j3 test-z3
-        ./cpp_example
-        ./c_example
-        # java -cp api/java/classes; JavaExample
-        cd ..
-# Skip as dead-slow in debug mode:
-#  - template: scripts/test-z3.yml
-    - template: scripts/test-regressions.yml
+      - job: NuGet64
+        displayName: "NuGet 64 packaging"
+        pool:
+          vmImage: "windows-latest"
+        steps:
+          - powershell: write-host $(System.DefinitionId)
+            displayName: 'System.DefinitionId'
+          - powershell: write-host $(Build.BuildId)
+            displayName: 'Build.BuildId'
+          - powershell: write-host $(System.TeamProjectId)
+            displayName: 'System.TeamProjectId'
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Win64 Build'
+            inputs:
+              artifact: 'WindowsBuild-x64'
+              path: $(Agent.TempDirectory)\package
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Ubuntu Build'
+            inputs:
+              artifact: 'UbuntuBuild'
+              path: $(Agent.TempDirectory)\package
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download macOS Build'
+            inputs:
+              artifact: 'macOSBuild'
+              path: $(Agent.TempDirectory)\package
+          - task: NuGetToolInstaller@0
+            inputs:
+              versionSpec: 5.x
+              checkLatest: false
+          - task: PythonScript@0
+            displayName: 'Python: assemble files'
+            env:
+              NUGET_DESCRIPTION: $(NugetDescription)
+            inputs:
+              scriptSource: 'filepath'
+              scriptPath: scripts\mk_nuget_task.py
+              workingDirectory: $(Agent.TempDirectory)\package
+              arguments:
+                $(Agent.TempDirectory)\package
+                $(NugetVersion)
+                $(Build.Repository.Uri)
+                $(Build.SourceBranchName)
+                $(Build.SourceVersion)
+                $(Build.SourcesDirectory)
+                symbols
+          - task: NugetCommand@2
+            displayName: 'NuGet Pack Symbols'
+            inputs:
+              command: custom
+              arguments: 'pack $(Agent.TempDirectory)\package\out\Microsoft.Z3.sym.nuspec -OutputDirectory $(Build.ArtifactStagingDirectory) -Verbosity detailed -Symbols -SymbolPackageFormat snupkg -BasePath $(Agent.TempDirectory)\package\out'
+#          - task: EsrpCodeSigning@1
+#            displayName: 'Sign Package'
+#            inputs:
+#              ConnectedServiceName: 'z3-esrp-signing-2'
+#              FolderPath: $(Build.ArtifactStagingDirectory)
+#              Pattern: Microsoft.Z3.$(ReleaseVersion).nupkg
+#              signConfigType: 'inlineSignParams'
+#              inlineOperation: |
+#                [
+#                  {
+#                    "KeyCode" : "CP-401405",
+#                    "OperationCode" : "NuGetSign",
+#                    "Parameters" : {},
+#                    "ToolName" : "sign",
+#                    "ToolVersion" : "1.0"
+#                  },
+#                  {
+#                    "KeyCode" : "CP-401405",
+#                    "OperationCode" : "NuGetVerify",
+#                    "Parameters" : {},
+#                    "ToolName" : "sign",
+#                    "ToolVersion" : "1.0"
+#                  }
+#                ]
+#              SessionTimeout: '60'
+#              MaxConcurrency: '50'
+#              MaxRetryAttempts: '5'
+#          - task: EsrpCodeSigning@1
+#            displayName: 'Sign Symbol Package'
+#            inputs:
+#              ConnectedServiceName: 'z3-esrp-signing-2'
+#              FolderPath: $(Build.ArtifactStagingDirectory)
+#              Pattern: Microsoft.Z3.$(ReleaseVersion).snupkg
+#              signConfigType: 'inlineSignParams'
+#              inlineOperation: |
+#                [
+#                  {
+#                    "KeyCode" : "CP-401405",
+#                    "OperationCode" : "NuGetSign",
+#                    "Parameters" : {},
+#                    "ToolName" : "sign",
+#                    "ToolVersion" : "1.0"
+#                  },
+#                  {
+#                    "KeyCode" : "CP-401405",
+#                    "OperationCode" : "NuGetVerify",
+#                    "Parameters" : {},
+#                    "ToolName" : "sign",
+#                    "ToolVersion" : "1.0"
+#                  }
+#                ]
+#              SessionTimeout: '60'
+#              MaxConcurrency: '50'
+#              MaxRetryAttempts: '5'
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)
+              artifactName: 'NuGet'
 
 
-- job: "MacOSCMake"
-  displayName: "MacOS build with CMake"
-  pool:
-    vmImage: "macOS-latest"
-  steps:
-    - script: brew install ninja
-#   - script: brew install --cask julia
-    - script: |
-        julia -e "using Pkg; Pkg.add(PackageSpec(name=\"libcxxwrap_julia_jll\", version=\"0.7.0\"))"
-        JlCxxDir=$(julia -e "using libcxxwrap_julia_jll; println(joinpath(dirname(libcxxwrap_julia_jll.libcxxwrap_julia_path), \"cmake\", \"JlCxx\"))")
-        set -e
-        mkdir build
-        cd build
-        cmake -DJlCxx_DIR=$JlCxxDir $(cmakeJulia) $(cmakeJava) $(cmakePy) -DZ3_BUILD_DOTNET_BINDINGS=False -G "Ninja" ../
-        ninja
-        ninja test-z3
-        cd ..
-    - template: scripts/test-z3.yml
-#   - template: scripts/test-examples-cmake.yml
-    - template: scripts/test-regressions.yml
-#   - template: scripts/test-java-cmake.yml
+  - stage: Tests
+
+    jobs:
+
+      - job: "LinuxMSan"
+        displayName: "Ubuntu build - cmake"
+        condition: eq(0,1)
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          matrix:
+            msanClang:
+              cmdLine: '$(msanEnv) cmake $(cmakeStdArgs)'
+              runUnitTest: 'True'
+              runExample: 'False' # Examples don't seem to build with MSAN
+        steps:
+          - script: sudo apt-get install ninja-build libc++-dev libc++abi-dev
+          - script: ./scripts/build_libcxx_msan.sh
+          - script: |
+              set -e
+              mkdir build
+              cd build
+              $(cmdLine)
+              ninja
+              ninja test-z3
+              cd ..
+          - script: |
+              cd build
+              export MSAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+              ./test-z3 -a
+              cd ..
+            condition: eq(variables['runUnitTest'], 'True')
+          - ${{if eq(variables['runExample'], 'True')}}:
+              - template: scripts/test-examples-cmake.yml
+      #   - template: scripts/test-jupyter.yml
+      #   - template: scripts/test-java-cmake.yml
+      #   - template: scripts/test-regressions.yml
+
+      - job: "UbuntuCMake"
+        displayName: "Ubuntu build - cmake"
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          matrix:
+            releaseClang:
+              setupCmd1: ''
+              setupCmd2: ''
+              buildCmd: 'CC=clang CXX=clang++ cmake -DCMAKE_BUILD_TYPE=Release $(cmakeStdArgs)'
+              runTests: 'True'
+            releaseSTGcc:
+              setupCmd1: ''
+              setupCmd2: ''
+              buildCmd: 'CC=gcc CXX=g++ cmake -DCMAKE_BUILD_TYPE=Release -DZ3_SINGLE_THREADED=ON $(cmakeStdArgs)'
+              runTests: 'True'
+        steps:
+          - script: sudo apt-get install ninja-build
+          - script: |
+              set -e
+              mkdir build
+              cd build
+              $(setupCmd1)
+              $(setupCmd2)
+              $(buildCmd)
+              ninja
+              ninja test-z3
+              cd ..
+          - script: |
+              cd build
+              ./test-z3 -a
+              cd ..
+            condition: eq(variables['runTests'], 'True')
+          - ${{if eq(variables['runTests'], 'True')}}:
+              - template: scripts/test-examples-cmake.yml
+          #   - template: scripts/test-jupyter.yml
+          #   - template: scripts/test-java-cmake.yml
+          - ${{if eq(variables['runTests'], 'True')}}:
+              - template: scripts/test-regressions.yml
 
 
-- job: "MacOSOCaml"
-  displayName: "MacOS build with OCaml"
-  condition: eq(0,1) 
-  pool:
-    vmImage: "macOS-latest"
-  steps:
-    - script: brew install opam
-    - script: opam init -y
-    - script: eval `opam config env`; opam install zarith ocamlfind -y
-    - script: eval `opam config env`; python scripts/mk_make.py --ml
-    - script: |
-        set -e
-        cd build
-        eval `opam config env`
-        make -j3
-        make -j3 examples
-        make -j3 test-z3
-        cd ..
-    - script: eval `opam config env`; ocamlfind install z3 build/api/ml/* -dll build/libz3.*
-    - script: |
-        set -e
-        cd build
-        eval `opam config env`
-        make -j3
-        make -j3 _ex_ml_example_post_install
-        # ./ml_example_shared.byte
-        # ./ml_example_shared_custom.byte
-        # ./ml_example_shared
-        cd ..
-# Skip as dead-slow in debug mode:
-#  - template: scripts/test-z3.yml
-    - template: scripts/test-regressions.yml
+      - job: "WindowsLatest"
+        displayName: "Windows"
+        pool:
+          vmImage: "windows-latest"
+        strategy:
+          matrix:
+            x64:
+              arch: 'x64'
+              bindings:  '$(cmakeJava) $(cmakeNet) $(cmakePy) -DCMAKE_BUILD_TYPE=RelWithDebInfo'
+              runTests:  'True'
+        steps:
+          - script: md build
+          - script: |
+              cd build
+              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" $(arch)
+              cmake $(bindings) -G "NMake Makefiles" ../
+              nmake
+              cd ..
+          - script: |
+              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" $(arch)
+              pushd build
+              nmake cpp_example
+              examples\cpp_example_build_dir\cpp_example.exe
+              nmake c_example
+              examples\c_example_build_dir\c_example.exe
+              nmake test-z3
+              test-z3.exe -a
+              popd
+            condition: eq(variables['runTests'], 'True')
+          - script: |
+              git clone https://github.com/z3prover/z3test z3test
+              python z3test\scripts\test_benchmarks.py build\z3.exe z3test\regressions\smt2
+            condition: eq(variables['runTests'], 'True')
+
+
+      - job: "MacOSPython"
+        displayName: "MacOS build"
+        variables:
+          NUGET_VERSION: $(NugetVersion)
+        pool:
+          vmImage: "macOS-latest"
+        steps:
+          - script: python scripts/mk_make.py -d --java --dotnet
+          - script: |
+              set -e
+              cd build
+              make -j3
+              make -j3 examples
+              make -j3 test-z3
+              ./cpp_example
+              ./c_example
+              # java -cp api/java/classes; JavaExample
+              cd ..
+          - template: scripts/test-regressions.yml
+
+
+      - job: "MacOSCMake"
+        displayName: "MacOS build with CMake"
+        pool:
+          vmImage: "macOS-latest"
+        steps:
+          - script: brew install ninja
+          - script: |
+              set -e
+              mkdir build
+              cd build
+              cmake $(cmakeJava) $(cmakePy) -DZ3_BUILD_DOTNET_BINDINGS=False -G "Ninja" ../
+              ninja
+              ninja test-z3
+              cd ..
+          - template: scripts/test-z3.yml
+          - template: scripts/test-regressions.yml
+
+
+
+  # Uploads Z3 packages to various package stores
+  - stage: Publish
+    jobs:
+
+      - job: GitHubPublish
+        condition: eq(1,1)
+        displayName: "Publish to GitHub"
+        pool:
+          vmImage: "windows-latest"
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Ubuntu Build'
+            inputs:
+              artifact: 'UbuntuBuild'
+              path: $(Agent.TempDirectory)
+
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download macOS Build'
+            inputs:
+              artifact: 'macOSBuild'
+              path: $(Agent.TempDirectory)
+
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Win64 Build'
+            inputs:
+              artifact: 'WindowsBuild-x64'
+              path: $(Agent.TempDirectory)
+
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download NuGet64 Package'
+            inputs:
+              artifact: 'NuGet'
+              path: $(Agent.TempDirectory)
+
+          - publish: $(Agent.TempDirectory)
+            artifact: AllArtifacts
+#    - task: GitHubRelease@0
+#      inputs:
+#        gitHubConnection: Z3Prover
+#        repositoryName: $(Build.Repository.Name)
+#        action: 'create'
+#        target: '$(Build.SourceVersion)'
+#        tagSource: 'manual'
+#        tag: 'z3-$(ReleaseVersion)'
+#        title: 'z3-$(ReleaseVersion)'
+#        releaseNotesSource: 'input'
+#        releaseNotes: '$(ReleaseVersion) release'
+#        assets: '$(Agent.TempDirectory)/*.*'
+#        isDraft: true
+#        isPreRelease: true
+

@@ -17,6 +17,14 @@ import os.path
 import shutil
 import subprocess
 
+def getenv(name, default):
+    try:
+        return os.environ[name].strip(' "\'')
+    except:
+        return default
+
+NUGET_DESCRIPTION=getenv("NUGET_DESCRIPTION", None)
+
 def mk_dir(d):
     if not os.path.exists(d):
         os.makedirs(d)
@@ -85,20 +93,18 @@ def mk_icon(source_root):
     mk_dir("out/content")
     shutil.copy(f"{source_root}/resources/icon.jpg", "out/content/icon.jpg")
 
-    
 def create_nuget_spec(version, repo, branch, commit, symbols, arch):
     arch = f".{arch}" if arch == "x86" else ""
+    description = NUGET_DESCRIPTION
     contents = """<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
-        <id>Microsoft.Z3{4}</id>
+        <id>Microsoft.Z3</id>
         <version>{0}</version>
         <authors>Microsoft</authors>
         <description>
 Z3 is a satisfiability modulo theories solver from Microsoft Research.
-
-Linux Dependencies:
-    libgomp.so.1 installed    
+{5}
         </description>
         <copyright>&#169; Microsoft Corporation. All rights reserved.</copyright>
         <tags>smt constraint solver theorem prover</tags>
@@ -112,7 +118,7 @@ Linux Dependencies:
             <group targetFramework=".netstandard2.0" />
         </dependencies>
     </metadata>
-</package>""".format(version, repo, branch, commit, arch)
+</package>""".format(version, repo, branch, commit, arch, description)
     print(contents)
     sym = "sym." if symbols else ""
     file = f"out/Microsoft.Z3{arch}.{sym}nuspec"
