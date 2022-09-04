@@ -44,19 +44,20 @@ namespace Microsoft.Z3
         /// </summary>
         public void Dispose()
         {
+            if (Disposed)
+            {
+                return;
+            }
             if (m_n_obj != IntPtr.Zero)
             {
                 DecRef(m_n_obj);
                 m_n_obj = IntPtr.Zero;                
             }
 
-            if (m_ctx != null)
-            {
-                if (Interlocked.Decrement(ref m_ctx.refCount) == 0)
-                    GC.ReRegisterForFinalize(m_ctx);
-                m_ctx = null;
-            }
+            Interlocked.Decrement(ref m_ctx.refCount);
 
+            _disposeMethodRegistration.Dispose();
+            Disposed = true;
             GC.SuppressFinalize(this);
         }
 
@@ -70,8 +71,9 @@ namespace Microsoft.Z3
         #endregion
 
         #region Internal
-        private Context m_ctx = null;
+        private readonly Context m_ctx = null;
         private IntPtr m_n_obj = IntPtr.Zero;
+        private readonly CancellationTokenRegistration _disposeMethodRegistration;
 
         internal Z3Object(Context ctx)
         {
@@ -79,6 +81,7 @@ namespace Microsoft.Z3
 
             Interlocked.Increment(ref ctx.refCount);
             m_ctx = ctx;
+            _disposeMethodRegistration = ctx.RegisterForDispose(this);
         }
 
         internal Z3Object(Context ctx, IntPtr obj)
@@ -89,6 +92,7 @@ namespace Microsoft.Z3
             m_ctx = ctx;
             IncRef(obj);
             m_n_obj = obj;
+            _disposeMethodRegistration = ctx.RegisterForDispose(this);
         }
 
         internal virtual void IncRef(IntPtr o) { }
@@ -123,6 +127,8 @@ namespace Microsoft.Z3
                 return m_ctx; 
             }            
         }
+        
+        public bool Disposed { get; private set; }
 
         internal static IntPtr[] ArrayToNative(Z3Object[] a)
         {

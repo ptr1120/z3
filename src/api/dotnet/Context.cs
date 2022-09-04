@@ -21,7 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Microsoft.Z3
 {
@@ -4850,123 +4850,6 @@ namespace Microsoft.Z3
             }
         }
 
-        private void ObjectInvariant()
-        {
-            Debug.Assert(m_AST_DRQ != null);
-            Debug.Assert(m_ASTMap_DRQ != null);
-            Debug.Assert(m_ASTVector_DRQ != null);
-            Debug.Assert(m_ApplyResult_DRQ != null);
-            Debug.Assert(m_FuncEntry_DRQ != null);
-            Debug.Assert(m_FuncInterp_DRQ != null);
-            Debug.Assert(m_Goal_DRQ != null);
-            Debug.Assert(m_Model_DRQ != null);
-            Debug.Assert(m_Params_DRQ != null);
-            Debug.Assert(m_ParamDescrs_DRQ != null);
-            Debug.Assert(m_Probe_DRQ != null);
-            Debug.Assert(m_Solver_DRQ != null);
-            Debug.Assert(m_Statistics_DRQ != null);
-            Debug.Assert(m_Tactic_DRQ != null);
-            Debug.Assert(m_Fixedpoint_DRQ != null);
-            Debug.Assert(m_Optimize_DRQ != null);
-        }
-
-        readonly private AST.DecRefQueue m_AST_DRQ = new AST.DecRefQueue();
-        readonly private ASTMap.DecRefQueue m_ASTMap_DRQ = new ASTMap.DecRefQueue(10);
-        readonly private ASTVector.DecRefQueue m_ASTVector_DRQ = new ASTVector.DecRefQueue(10);
-        readonly private ApplyResult.DecRefQueue m_ApplyResult_DRQ = new ApplyResult.DecRefQueue(10);
-        readonly private FuncInterp.Entry.DecRefQueue m_FuncEntry_DRQ = new FuncInterp.Entry.DecRefQueue(10);
-        readonly private FuncInterp.DecRefQueue m_FuncInterp_DRQ = new FuncInterp.DecRefQueue(10);
-        readonly private Goal.DecRefQueue m_Goal_DRQ = new Goal.DecRefQueue(10);
-        readonly private Model.DecRefQueue m_Model_DRQ = new Model.DecRefQueue(10);
-        readonly private Params.DecRefQueue m_Params_DRQ = new Params.DecRefQueue(10);
-        readonly private ParamDescrs.DecRefQueue m_ParamDescrs_DRQ = new ParamDescrs.DecRefQueue(10);
-        readonly private Probe.DecRefQueue m_Probe_DRQ = new Probe.DecRefQueue(10);
-        readonly private Solver.DecRefQueue m_Solver_DRQ = new Solver.DecRefQueue(10);
-        readonly private Statistics.DecRefQueue m_Statistics_DRQ = new Statistics.DecRefQueue(10);
-        readonly private Tactic.DecRefQueue m_Tactic_DRQ = new Tactic.DecRefQueue(10);
-        readonly private Fixedpoint.DecRefQueue m_Fixedpoint_DRQ = new Fixedpoint.DecRefQueue(10);
-        readonly private Optimize.DecRefQueue m_Optimize_DRQ = new Optimize.DecRefQueue(10);
-
-        /// <summary>
-        /// AST DRQ
-        /// </summary>
-        public IDecRefQueue AST_DRQ { get { return m_AST_DRQ; } }
-
-        /// <summary>
-        /// ASTMap DRQ
-        /// </summary>
-        public IDecRefQueue ASTMap_DRQ { get { return m_ASTMap_DRQ; } }
-
-        /// <summary>
-        /// ASTVector DRQ
-        /// </summary>
-        public IDecRefQueue ASTVector_DRQ { get { return m_ASTVector_DRQ; } }
-
-        /// <summary>
-        /// ApplyResult DRQ
-        /// </summary>
-        public IDecRefQueue ApplyResult_DRQ { get { return m_ApplyResult_DRQ; } }
-
-        /// <summary>
-        /// FuncEntry DRQ
-        /// </summary>
-        public IDecRefQueue FuncEntry_DRQ { get { return m_FuncEntry_DRQ; } }
-
-        /// <summary>
-        /// FuncInterp DRQ
-        /// </summary>
-        public IDecRefQueue FuncInterp_DRQ { get { return m_FuncInterp_DRQ; } }
-
-        /// <summary>
-        /// Goal DRQ
-        /// </summary>
-        public IDecRefQueue Goal_DRQ { get { return m_Goal_DRQ; } }
-
-        /// <summary>
-        /// Model DRQ
-        /// </summary>
-        public IDecRefQueue Model_DRQ { get { return m_Model_DRQ; } }
-
-        /// <summary>
-        /// Params DRQ
-        /// </summary>
-        public IDecRefQueue Params_DRQ { get { return m_Params_DRQ; } }
-
-        /// <summary>
-        /// ParamDescrs DRQ
-        /// </summary>
-        public IDecRefQueue ParamDescrs_DRQ { get { return m_ParamDescrs_DRQ; } }
-
-        /// <summary>
-        /// Probe DRQ
-        /// </summary>
-        public IDecRefQueue Probe_DRQ { get { return m_Probe_DRQ; } }
-
-        /// <summary>
-        /// Solver DRQ
-        /// </summary>
-        public IDecRefQueue Solver_DRQ { get { return m_Solver_DRQ; } }
-
-        /// <summary>
-        /// Statistics DRQ
-        /// </summary>
-        public IDecRefQueue Statistics_DRQ { get { return m_Statistics_DRQ; } }
-
-        /// <summary>
-        /// Tactic DRQ
-        /// </summary>
-        public IDecRefQueue Tactic_DRQ { get { return m_Tactic_DRQ; } }
-
-        /// <summary>
-        /// FixedPoint DRQ
-        /// </summary>
-        public IDecRefQueue Fixedpoint_DRQ { get { return m_Fixedpoint_DRQ; } }
-
-        /// <summary>
-        /// Optimize DRQ
-        /// </summary>
-        public IDecRefQueue Optimize_DRQ { get { return m_Fixedpoint_DRQ; } }
-
         internal long refCount = 0;
 
         /// <summary>
@@ -4977,29 +4860,28 @@ namespace Microsoft.Z3
             // Console.WriteLine("Context Finalizer from " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             Dispose();
         }
+        private readonly CancellationTokenSource _disposeZ3ObjectTokenSource = new CancellationTokenSource();
 
+        internal CancellationTokenRegistration RegisterForDispose(Z3Object m)
+        {
+            return _disposeZ3ObjectTokenSource.Token.Register(m.Dispose);
+        }
+        
+        public bool Disposed { get; private set; }
+        
         /// <summary>
         /// Disposes of the context.
         /// </summary>
         public void Dispose()
         {
             // Console.WriteLine("Context Dispose from " + System.Threading.Thread.CurrentThread.ManagedThreadId);
-            AST_DRQ.Clear(this);
-            ASTMap_DRQ.Clear(this);
-            ASTVector_DRQ.Clear(this);
-            ApplyResult_DRQ.Clear(this);
-            FuncEntry_DRQ.Clear(this);
-            FuncInterp_DRQ.Clear(this);
-            Goal_DRQ.Clear(this);
-            Model_DRQ.Clear(this);
-            Params_DRQ.Clear(this);
-            ParamDescrs_DRQ.Clear(this);
-            Probe_DRQ.Clear(this);
-            Solver_DRQ.Clear(this);
-            Statistics_DRQ.Clear(this);
-            Tactic_DRQ.Clear(this);
-            Fixedpoint_DRQ.Clear(this);
-            Optimize_DRQ.Clear(this);
+            if (Disposed)
+            {
+                return;
+            }
+
+            // Dispose all Z3Objects
+            _disposeZ3ObjectTokenSource.Cancel();
 
             if (m_boolSort != null) m_boolSort.Dispose();
             if (m_intSort != null) m_intSort.Dispose();
@@ -5011,16 +4893,15 @@ namespace Microsoft.Z3
             m_realSort = null;
             m_stringSort = null;
             m_charSort = null;
-            if (refCount == 0 && m_ctx != IntPtr.Zero)
-            {
-                m_n_err_handler = null;
-                IntPtr ctx = m_ctx;
-                m_ctx = IntPtr.Zero;
-                if (!is_external) 
-                   Native.Z3_del_context(ctx);
-            }
-            else
-                GC.ReRegisterForFinalize(this);
+            m_n_err_handler = null;
+            IntPtr ctx = m_ctx;
+            m_ctx = IntPtr.Zero;
+            // Free the context
+            Native.Z3_del_context(ctx);
+
+            _disposeZ3ObjectTokenSource.Dispose();
+            Disposed = true;
+            GC.SuppressFinalize(this);
         }
 
 
