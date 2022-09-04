@@ -208,27 +208,12 @@ namespace Microsoft.Z3
         internal AST(Context ctx) : base(ctx) { Debug.Assert(ctx != null); }
         internal AST(Context ctx, IntPtr obj) : base(ctx, obj) { Debug.Assert(ctx != null); }
 
-        internal class DecRefQueue : IDecRefQueue
-        {
-            public DecRefQueue() : base() { }
-            public DecRefQueue(uint move_limit) : base(move_limit) { }
-            internal override void IncRef(Context ctx, IntPtr obj)
-            {
-                Native.Z3_inc_ref(ctx.nCtx, obj);
-            }
-
-            internal override void DecRef(Context ctx, IntPtr obj)
-            {
-                Native.Z3_dec_ref(ctx.nCtx, obj);
-            }
-        };
-
         internal override void IncRef(IntPtr o)
         {
             // Console.WriteLine("AST IncRef()");
             if (Context == null || o == IntPtr.Zero)
                 return;
-            Context.AST_DRQ.IncAndClear(Context, o);
+            Native.Z3_inc_ref(Context.nCtx, o);
             base.IncRef(o);
         }
 
@@ -237,7 +222,7 @@ namespace Microsoft.Z3
             // Console.WriteLine("AST DecRef()");
             if (Context == null || o == IntPtr.Zero)
                 return;
-            Context.AST_DRQ.Add(o);
+            Native.Z3_dec_ref(Context.nCtx, o);
             base.DecRef(o);
         }
 
