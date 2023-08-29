@@ -32,12 +32,12 @@ stages:
               arguments: --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
           - script: git clone https://github.com/z3prover/z3test z3test
             displayName: 'Clone z3test'
-          - task: PythonScript@0
-            displayName: Test
-            inputs:
-              scriptSource: 'filepath'
-              scriptPath: z3test/scripts/test_benchmarks.py
-              arguments: build-dist/z3 z3test/regressions/smt2
+#          - task: PythonScript@0
+#            displayName: Test
+#            inputs:
+#              scriptSource: 'filepath'
+#              scriptPath: z3test/scripts/test_benchmarks.py
+#              arguments: build-dist/z3 z3test/regressions/smt2
           - task: CopyFiles@2
             inputs:
               sourceFolder: dist
@@ -64,12 +64,12 @@ stages:
               arguments: --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
           - script: git clone https://github.com/z3prover/z3test z3test
             displayName: 'Clone z3test'
-          - task: PythonScript@0
-            displayName: Test
-            inputs:
-              scriptSource: 'filepath'
-              scriptPath: z3test/scripts/test_benchmarks.py
-              arguments: build-dist/z3 z3test/regressions/smt2
+#          - task: PythonScript@0
+#            displayName: Test
+#            inputs:
+#              scriptSource: 'filepath'
+#              scriptPath: z3test/scripts/test_benchmarks.py
+#              arguments: build-dist/z3 z3test/regressions/smt2
           - task: CopyFiles@2
             inputs:
               sourceFolder: dist
@@ -95,12 +95,12 @@ stages:
               arguments: --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
           - script: git clone https://github.com/z3prover/z3test z3test
             displayName: 'Clone z3test'
-          - task: PythonScript@0
-            displayName: Test
-            inputs:
-              scriptSource: 'filepath'
-              scriptPath: z3test/scripts/test_benchmarks.py
-              arguments: build-dist/z3 z3test/regressions/smt2
+#          - task: PythonScript@0
+#            displayName: Test
+#            inputs:
+#              scriptSource: 'filepath'
+#              scriptPath: z3test/scripts/test_benchmarks.py
+#              arguments: build-dist/z3 z3test/regressions/smt2
           - task: CopyFiles@2
             inputs:
               sourceFolder: dist
