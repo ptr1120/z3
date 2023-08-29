@@ -51,7 +51,8 @@ stages:
       - job: Arm64Build
         displayName: "Arm64 Build"
         pool:
-          vmImage: Ubuntu_2004_ARM64
+          name: Default
+          demands: arm64
         steps:
           - task: PythonScript@0
             displayName: Build
