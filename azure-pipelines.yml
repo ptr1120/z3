@@ -52,7 +52,7 @@ stages:
         displayName: "Arm64 Build"
         pool:
           name: Default
-          demands: arm64
+          demands: TARGETARCH -equals linux-arm64
         steps:
           - task: PythonScript@0
             displayName: Build
