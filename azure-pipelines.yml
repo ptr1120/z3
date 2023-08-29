@@ -48,7 +48,6 @@ stages:
               artifactName: 'macOSBuild'
               targetPath: $(Build.ArtifactStagingDirectory)
 
-
       - job: Arm64Build
         displayName: "Arm64 Build"
         pool:
