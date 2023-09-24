@@ -34,6 +34,7 @@ stages:
         scriptPath: z3test/scripts/test_benchmarks.py
         arguments: build-dist/z3 z3test/regressions/smt2
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       inputs:
         sourceFolder: dist
         contents: '*.zip'
@@ -76,11 +77,13 @@ stages:
         scriptPath: z3test/scripts/test_benchmarks.py
         arguments: build-dist/z3 z3test/regressions/smt2
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       inputs:
         sourceFolder: dist
         contents: '*.zip'
         targetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishPipelineArtifact@0
+      condition: succeededOrFailed()
       inputs:
         artifactName: 'UbuntuBuild'
         targetPath: $(Build.ArtifactStagingDirectory)
@@ -147,6 +150,7 @@ stages:
         arguments: build-dist/z3 z3test/regressions/smt2
         pythonInterpreter: $(python)
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       inputs:
         sourceFolder: dist
         contents: '*.zip'
@@ -169,10 +173,12 @@ stages:
 
 # Creates Z3 packages in various formats
 - stage: Package
+  condition: succeededOrFailed()
   jobs:
 
   - job: NuGet64
     displayName: "NuGet 64 packaging"
+    condition: succeededOrFailed()
     pool:
       vmImage: "windows-latest"
     steps:
@@ -275,6 +281,7 @@ stages:
         MaxConcurrency: '50'
         MaxRetryAttempts: '5'        
     - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
       inputs:
         targetPath: $(Build.ArtifactStagingDirectory)
         artifactName: 'NuGet'

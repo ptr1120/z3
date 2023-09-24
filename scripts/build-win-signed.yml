@@ -30,6 +30,7 @@ jobs:
             --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
   - task: CopyFiles@2
     displayName: 'Collect Symbols'
+    condition: succeededOrFailed()
     inputs:
       sourceFolder: dist
       contents: '**/*.pdb'
@@ -98,6 +99,7 @@ jobs:
       archiveType: 'zip'
       archiveFile: '$(Build.ArtifactStagingDirectory)/z3-${{parameters.ReleaseVersion}}-${{parameters.BuildArchitecture}}-win.zip'
   - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/z3-${{parameters.ReleaseVersion}}-${{parameters.BuildArchitecture}}-win.zip'
       artifactName: 'WindowsBuild-${{parameters.BuildArchitecture}}'

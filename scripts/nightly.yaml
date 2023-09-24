@@ -18,6 +18,7 @@ stages:
     - script: python z3test/scripts/test_benchmarks.py build-dist/z3 z3test/regressions/smt2    
     - script: cp dist/*.zip $(Build.ArtifactStagingDirectory)/.
     - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
       inputs:
         artifactName: 'Mac'
         targetPath: $(Build.ArtifactStagingDirectory)
@@ -31,6 +32,7 @@ stages:
     - script: git clone https://github.com/z3prover/z3test z3test
     - script: cp dist/*.zip $(Build.ArtifactStagingDirectory)/.
     - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
       inputs:
         artifactName: 'MacArm64'
         targetPath: $(Build.ArtifactStagingDirectory)
@@ -45,6 +47,7 @@ stages:
     - script: python z3test/scripts/test_benchmarks.py build-dist/z3 z3test/regressions/smt2    
     - script: cp dist/*.zip $(Build.ArtifactStagingDirectory)/.
     - task: PublishPipelineArtifact@0
+      condition: succeededOrFailed()
       inputs:
         artifactName: 'Ubuntu'
         targetPath: $(Build.ArtifactStagingDirectory)
@@ -136,6 +139,7 @@ stages:
             --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
             --zip
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       inputs:
         sourceFolder: dist
         contents: '*.zip'
@@ -176,15 +180,18 @@ stages:
             --dotnet-key=$(Build.SourcesDirectory)/resources/z3.snk
             --zip
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       inputs:
         sourceFolder: dist
         contents: '*.zip'
         targetFolder: $(Build.ArtifactStagingDirectory)
     - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
       inputs:
         targetPath: $(Build.ArtifactStagingDirectory)
         artifactName: 'Windows64'
     - task: CopyFiles@2
+      condition: succeededOrFailed()
       displayName: 'Collect Symbols'
       inputs:
         sourceFolder: dist
@@ -202,9 +209,11 @@ stages:
         detailedLog: true
 
 - stage: Package
+  condition: succeededOrFailed()
   jobs:
   - job: NuGet64
     displayName: "NuGet 64 packaging"
+    condition: succeededOrFailed()
     pool:
       vmImage: "windows-latest"
     steps:
@@ -318,6 +327,7 @@ stages:
         MaxConcurrency: '50'
         MaxRetryAttempts: '5'        
     - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
       inputs:
         targetPath: $(Build.ArtifactStagingDirectory)
         artifactName: 'NuGet'
