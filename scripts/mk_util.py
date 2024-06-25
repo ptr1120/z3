@@ -1743,7 +1743,8 @@ class DotNetDLLComponent(Component):
         core_csproj_str = r"""<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.4</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <LangVersion>8.0</LangVersion>
     <DefineConstants>$(DefineConstants);DOTNET_CORE</DefineConstants>
     <DebugType>full</DebugType>
@@ -1751,7 +1752,6 @@ class DotNetDLLComponent(Component):
     <OutputType>Library</OutputType>
     <PackageId>Microsoft.Z3</PackageId>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RuntimeFrameworkVersion>1.0.4</RuntimeFrameworkVersion>
     <Version>%s</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Microsoft</Authors>
@@ -2261,12 +2261,7 @@ class DotNetExampleComponent(ExampleComponent):
 
             mk_dir(os.path.join(BUILD_DIR, 'dotnet_example'))
             csproj = os.path.join('dotnet_example', proj_name)
-            if VS_X64:
-                platform = 'x64'
-            elif VS_ARM:
-                platform = 'ARM'
-            else:
-                platform = 'x86'
+            platform = 'AnyCpu'
 
             dotnet_proj_str = r"""<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
