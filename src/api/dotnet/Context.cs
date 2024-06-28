@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Microsoft.Z3
 {
@@ -4980,6 +4981,13 @@ namespace Microsoft.Z3
             // Console.WriteLine("Context Finalizer from " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             Dispose();
         }
+        private readonly CancellationTokenSource _disposeZ3ObjectTokenSource = new CancellationTokenSource();
+        internal CancellationTokenRegistration RegisterForDispose(Z3Object m)
+        {
+            return _disposeZ3ObjectTokenSource.Token.Register(m.Dispose);
+        }
+        public bool Disposed { get; private set; }
+
 
         /// <summary>
         /// Disposes of the context.
@@ -4987,30 +4995,18 @@ namespace Microsoft.Z3
         public void Dispose()
         {
             // Console.WriteLine("Context Dispose from " + System.Threading.Thread.CurrentThread.ManagedThreadId);
-
-            if (m_boolSort != null) m_boolSort.Dispose();
-            if (m_intSort != null) m_intSort.Dispose();
-            if (m_realSort != null) m_realSort.Dispose();
-            if (m_stringSort != null) m_stringSort.Dispose();
-            if (m_charSort != null) m_charSort.Dispose();
-            m_boolSort = null;
-            m_intSort = null;
-            m_realSort = null;
-            m_stringSort = null;
-            m_charSort = null;
-            if (m_ctx != IntPtr.Zero)
+            if (Disposed)
             {
-                IntPtr ctx = m_ctx;
-                lock (this)
-                {
-                    m_n_err_handler = null;
-                    m_ctx = IntPtr.Zero;
-                }
-                if (!is_external)
-                    Native.Z3_del_context(ctx);
+                return;
             }
 
-            GC.SuppressFinalize(this);
+            // Dispose all Z3Objects
+            _disposeZ3ObjectTokenSource.Cancel();
+            // Free the context
+            Native.Z3_del_context(m_ctx);
+            m_ctx = IntPtr.Zero;
+            _disposeZ3ObjectTokenSource.Dispose();
+            Disposed = true;
         }
 
 

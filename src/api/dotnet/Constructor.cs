@@ -85,20 +85,23 @@ namespace Microsoft.Z3
                 return t;
             }
         }
-
-        /// <summary>
-        /// Destructor.
-        /// </summary>
-        ~Constructor()
+        internal override void DecRef(IntPtr o)
         {
-	    if (Context.nCtx != IntPtr.Zero) {
-               lock (Context) 
-	       { 
-                   if (Context.nCtx != IntPtr.Zero) 
-                       Native.Z3_del_constructor(Context.nCtx, NativeObject);
-               }
+            if (Context.nCtx != IntPtr.Zero) {
+                lock (Context) 
+                { 
+                    if (Context.nCtx != IntPtr.Zero) 
+                        Native.Z3_del_constructor(Context.nCtx, NativeObject);
+                }
             }
-        }        
+        }
+
+        internal override void IncRef(IntPtr o)
+        {
+            // done in ctor
+        }
+
+
 
         #region Internal
         private uint n = 0;

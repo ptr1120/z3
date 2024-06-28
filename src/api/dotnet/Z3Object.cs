@@ -29,8 +29,10 @@ namespace Microsoft.Z3
     /// Internal base class for interfacing with native Z3 objects.
     /// Should not be used externally.
     /// </summary>
-    public class Z3Object : IDisposable
+    public abstract class Z3Object : IDisposable
     {
+        private readonly CancellationTokenRegistration _disposeMethodRegistration;
+
         /// <summary>
         /// Finalizer.
         /// </summary>
@@ -38,19 +40,27 @@ namespace Microsoft.Z3
         {
             Dispose();            
         }
+        
+        public bool Disposed { get; private set; }
 
         /// <summary>
         /// Disposes of the underlying native Z3 object.
         /// </summary>
         public void Dispose()
         {
+            if (Disposed)
+            {
+                return;
+            }
+            
             if (m_n_obj != IntPtr.Zero)
             {
                 DecRef(m_n_obj);
                 m_n_obj = IntPtr.Zero;                
             }
 
-            m_ctx = null;
+            _disposeMethodRegistration.Dispose();
+            Disposed = true;
 
             GC.SuppressFinalize(this);
         }
@@ -65,13 +75,14 @@ namespace Microsoft.Z3
         #endregion
 
         #region Internal
-        private Context m_ctx = null;
+        private readonly Context m_ctx;
         private IntPtr m_n_obj = IntPtr.Zero;
 
         internal Z3Object(Context ctx)
         {
             Debug.Assert(ctx != null);
             m_ctx = ctx;
+            _disposeMethodRegistration = ctx.RegisterForDispose(this);
         }
 
         internal Z3Object(Context ctx, IntPtr obj)
@@ -80,10 +91,11 @@ namespace Microsoft.Z3
             m_ctx = ctx;
             m_n_obj = obj;
             IncRef(obj);
+            _disposeMethodRegistration = ctx.RegisterForDispose(this);
         }
 
-        internal virtual void IncRef(IntPtr o) { }
-        internal virtual void DecRef(IntPtr o) { }
+        internal abstract void IncRef(IntPtr o);
+        internal abstract void DecRef(IntPtr o);
 
         internal virtual void CheckNativeObject(IntPtr obj) { }
 

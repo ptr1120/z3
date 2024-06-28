@@ -34,10 +34,16 @@ namespace Microsoft.Z3
         /// <summary>
         /// Destructor.
         /// </summary>
-        ~ConstructorList()
+        internal override void DecRef(IntPtr o)
         {
             Native.Z3_del_constructor_list(Context.nCtx, NativeObject);
         }
+
+        internal override void IncRef(IntPtr o)
+        {
+        }
+
+
 
         #region Internal
         internal ConstructorList(Context ctx, IntPtr obj)

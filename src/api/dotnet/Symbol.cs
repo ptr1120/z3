@@ -131,5 +131,13 @@ namespace Microsoft.Z3
             }
         }
         #endregion
+
+        internal override void IncRef(IntPtr o)
+        {
+        }
+
+        internal override void DecRef(IntPtr o)
+        {
+        }
     }
 }

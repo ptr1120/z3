@@ -11,10 +11,10 @@ variables:
   ReleaseVersion: '4.13.1'
   NugetNotes: |
     - Z3GitSourceSha: 8e482df62a59520499e575e21b9e01bd889ddddb
-    - linux-x64: Ubuntu-22-glibc-2.35
-    - linux-arm64: Ubuntu-22-glibc-2.34
-    - osx-*: macOS-12
-    - changeset: custom-ci for arm, nuget; fixed ast hash table size
+    - changeset: 
+      - custom-ci with arm, nuget fixes 
+      - fixed ast hash table size
+      - cancel-token
   
 # TBD: 
 #   test python bindings
