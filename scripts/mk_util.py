@@ -825,7 +825,7 @@ def parse_options():
         else:
             print("ERROR: Invalid command line option '%s'" % opt)
             display_help(1)
-
+    JAVA_ENABLED = False
 
 # Return a list containing a file names included using '#include' in
 # the given C/C++ file named fname.
@@ -1756,7 +1756,6 @@ class DotNetDLLComponent(Component):
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Microsoft</Authors>
     <Company>Microsoft</Company>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <Description>Z3 is a satisfiability modulo theories solver from Microsoft Research.</Description>
     <Copyright>Copyright Microsoft Corporation. All rights reserved.</Copyright>
@@ -1766,10 +1765,9 @@ class DotNetDLLComponent(Component):
 
   <ItemGroup>
     <Compile Include="..\%s\*.cs;*.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
-    <None Include="..\%s\README.md" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
-</Project>""" % (version, key, self.to_src_dir, self.to_src_dir)
+</Project>""" % (version, key, self.to_src_dir)
 
         mk_dir(os.path.join(BUILD_DIR, 'dotnet'))
         csproj = os.path.join('dotnet', 'z3.csproj')
