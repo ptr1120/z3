@@ -141,6 +141,7 @@ def parse_options():
         else:
             raise MKException("Invalid command line option '%s'" % opt)
     set_build_dir(path)
+    JAVA_ENABLED = False
 
 def check_output(cmd):
     out = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]

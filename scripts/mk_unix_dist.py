@@ -111,6 +111,7 @@ def parse_options():
         else:
             raise MKException("Invalid command line option '%s'" % opt)
     set_build_dir(path)
+    JAVA_ENABLED = False
 
 # Check whether build directory already exists or not
 def check_build_dir(path):
