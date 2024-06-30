@@ -1,7 +1,6 @@
 # 
 # Copyright (c) 2018 Microsoft Corporation
 #
-
 # 1. copy over dlls
 # 2. copy over libz3.dll for the different architectures
 # 3. copy over Microsoft.Z3.dll from suitable distribution
@@ -15,20 +14,41 @@ import zipfile
 import sys
 import os.path
 import shutil
-import subprocess
+import glob
+
+
+def getenv(name, default):
+    try:
+        return os.environ[name].strip(' "\'')
+    except:
+        return default
 
 def mk_dir(d):
     if not os.path.exists(d):
         os.makedirs(d)
 
-os_info = {  'ubuntu-latest' : ('so', 'linux-x64'),
-             'ubuntu-18' : ('so', 'linux-x64'),
-             'ubuntu-20' : ('so', 'linux-x64'),
-             'glibc-2.31' : ('so', 'linux-x64'),
+os_info = {  
+            # x64
+             'x64-ubuntu-latest' : ('so', 'linux-x64'),
+             # 'x64-ubuntu-18' : ('so', 'linux-x64'),
+             # 'x64-ubuntu-20' : ('so', 'linux-x64'),
+             # 'x64-ubuntu-22' : ('so', 'linux-x64'),
+             'x64-glibc-2.35' : ('so', 'linux-x64'),  # ubuntu 22
+             'x64-osx' : ('dylib', 'osx-x64'),
              'x64-win' : ('dll', 'win-x64'),
-             'x86-win' : ('dll', 'win-x86'),
-             'osx' : ('dylib', 'osx-x64'),
-             'debian' : ('so', 'linux-x64') }
+             # 'x86-win' : ('dll', 'win-x86'),
+             # 'debian' : ('so', 'linux-x64') ,
+    
+             # ARM
+             'arm64-glibc-2.34' : ('so', 'linux-arm64'),  # ubuntu 22
+             'arm64-osx' : ('dylib', 'osx-arm64'),
+             'arm64-win' : ('dll', 'win-arm64'),
+             
+             }
+
+# Nuget not supported for ARM
+#'arm-glibc-2.35' : ('so', 'linux-arm64'),
+#'arm64-osx' : ('dylib', 'osx-arm64'),
 
         
 
@@ -56,26 +76,35 @@ def unpack(packages, symbols, arch):
     #    +- osx-x64
     # +
     tmp = "tmp" if not symbols else "tmpsym"
+    zip_file_names = glob.glob(f"{packages}/*.zip")
+    print("Found following zip files",zip_file_names)
+    mk_dir("out/lib/netstandard2.0/")
     for f in os.listdir(packages):
         print(f)
-        if f.endswith(".zip") and classify_package(f, arch):
+        if classify_package(f, arch):
             os_name, package_dir, ext, dst = classify_package(f, arch)
             path = os.path.abspath(os.path.join(packages, f))
             zip_ref = zipfile.ZipFile(path, 'r')
-            zip_ref.extract(f"{package_dir}/bin/libz3.{ext}", f"{tmp}")
-            mk_dir(f"out/runtimes/{dst}/native")
-            replace(f"{tmp}/{package_dir}/bin/libz3.{ext}", f"out/runtimes/{dst}/native/libz3.{ext}")            
+            src_file_path_extracted = zip_ref.extract(f"{package_dir}/bin/libz3.{ext}", f"{tmp}")
+            native_out_dir = f"out/runtimes/{dst}/native"
+            mk_dir(native_out_dir)
+            replace(src_file_path_extracted, f"{native_out_dir}/libz3.{ext}")            
             if "x64-win" in f or "x86-win" in f:
-                mk_dir("out/lib/netstandard2.0/")
+                files = ["Microsoft.Z3.dll", "Microsoft.Z3.xml"]
+
                 if symbols:
-                    zip_ref.extract(f"{package_dir}/bin/libz3.pdb", f"{tmp}")
-                    replace(f"{tmp}/{package_dir}/bin/libz3.pdb", f"out/runtimes/{dst}/native/libz3.pdb") 
-                files = ["Microsoft.Z3.dll"]                
-                if symbols:
-                    files += ["Microsoft.Z3.pdb", "Microsoft.Z3.xml"]
+                    src_file_path_extracted = zip_ref.extract( f"{package_dir}/bin/libz3.pdb", f"{tmp}")
+                    replace(src_file_path_extracted, f"out/runtimes/{dst}/native/libz3.pdb")
+                    files += ["Microsoft.Z3.pdb"]
+                
                 for b in files:
-                    zip_ref.extract(f"{package_dir}/bin/{b}", f"{tmp}")
-                    replace(f"{tmp}/{package_dir}/bin/{b}", f"out/lib/netstandard2.0/{b}")
+                    src_file_path_extracted = zip_ref.extract(f"{package_dir}/bin/{b}", f"{tmp}")
+                    replace(src_file_path_extracted, f"out/lib/netstandard2.0/{b}")
+            else:
+                print("Ignoring (x64-win)", f)            
+        else:
+            print("Ignoring ", f)                
+
 
 def mk_targets(source_root):
     mk_dir("out/build")
@@ -84,10 +113,16 @@ def mk_targets(source_root):
 def mk_icon(source_root):
     mk_dir("out/content")
     shutil.copy(f"{source_root}/resources/icon.jpg", "out/content/icon.jpg")
+#   shutil.copy(f"{source_root}/src/api/dotnet/README.md", "out/content/README.md")
+
 
     
 def create_nuget_spec(version, repo, branch, commit, symbols, arch):
     arch = f".{arch}" if arch == "x86" else ""
+    branch_name= getenv("BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCH not found")
+    build_number = getenv("BUILD_BUILDNUMBER", "BUILD_BUILDNUMBER not found")
+    nuget_notes= getenv("NUGETNOTES", "NugetNotes not found")
+    git_message = getenv("BUILD_SOURCEVERSIONMESSAGE", "BUILD_SOURCEVERSIONMESSAGE not found")
     contents = """<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
@@ -95,10 +130,10 @@ def create_nuget_spec(version, repo, branch, commit, symbols, arch):
         <version>{0}</version>
         <authors>Microsoft</authors>
         <description>
-Z3 is a satisfiability modulo theories solver from Microsoft Research.
-
-Linux Dependencies:
-    libgomp.so.1 installed    
+    BuildId: {6}
+    BranchName: {5}
+    GitMessage: {7}
+    Notes: {8}
         </description>
         <copyright>&#169; Microsoft Corporation. All rights reserved.</copyright>
         <tags>smt constraint solver theorem prover</tags>
@@ -112,7 +147,7 @@ Linux Dependencies:
             <group targetFramework=".netstandard2.0" />
         </dependencies>
     </metadata>
-</package>""".format(version, repo, branch, commit, arch)
+</package>""".format(version, repo, branch, commit, arch, branch_name, build_number, git_message, nuget_notes)
     print(contents)
     sym = "sym." if symbols else ""
     file = f"out/Microsoft.Z3{arch}.{sym}nuspec"
