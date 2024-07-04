@@ -4967,7 +4967,6 @@ namespace Microsoft.Z3
         /// </summary>
         public IDecRefQueue Optimize_DRQ { get { return m_Fixedpoint_DRQ; } }
 
-        internal long refCount = 0;
 
         /// <summary>
         /// Finalizer.
@@ -5011,7 +5010,7 @@ namespace Microsoft.Z3
             m_realSort = null;
             m_stringSort = null;
             m_charSort = null;
-            if (refCount == 0 && m_ctx != IntPtr.Zero)
+            if (m_ctx != IntPtr.Zero)
             {
                 m_n_err_handler = null;
                 IntPtr ctx = m_ctx;
@@ -5019,8 +5018,7 @@ namespace Microsoft.Z3
                 if (!is_external) 
                    Native.Z3_del_context(ctx);
             }
-            else
-                GC.ReRegisterForFinalize(this);
+            GC.SuppressFinalize(this);
         }
 
 
