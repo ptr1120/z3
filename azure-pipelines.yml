@@ -10,7 +10,7 @@ variables:
   msanEnv: 'CC=clang LDFLAGS="-L../libcxx/libcxx_msan/lib -lc++abi -Wl,-rpath=../libcxx/libcxx_msan/lib" CXX=clang++ CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -fsanitize-memory-track-origins -fsanitize=memory -fPIE -fno-omit-frame-pointer -g -O2" CFLAGS="${CFLAGS} -stdlib=libc -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer -g -O2"'
   ReleaseVersion: '4.11.2'
   NugetVersion: '$(ReleaseVersion)-ast-size-cancel-token-consequence-0001'
-  NugetDescription: 'Build on Azure: BuildId $(Build.BuildId) * native change: starting size of ast hash table, see also https://github.com/Z3Prover/z3/pull/5040 *  Dotnet: removed IDecRefQueue and dispose via cancellation token * fix Inconsistent Results from consequences Interface Based on Constant Names (see: https://github.com/Z3Prover/z3/issues/6916)'
+  NugetDescription: 'Build on Azure: BuildId $(Build.BuildId) * native change: starting size of ast hash table, see also https://github.com/Z3Prover/z3/pull/5040 *  Dotnet: the dotnet dll is only modified in context.cs dispose (removed ref-counting dispose dependency) * fix Inconsistent Results from consequences Interface Based on Constant Names (see: https://github.com/Z3Prover/z3/issues/6916)'
 
 stages:
 
