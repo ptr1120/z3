@@ -50,12 +50,7 @@ namespace Microsoft.Z3
                 m_n_obj = IntPtr.Zero;                
             }
 
-            if (m_ctx != null)
-            {
-                if (Interlocked.Decrement(ref m_ctx.refCount) == 0)
-                    GC.ReRegisterForFinalize(m_ctx);
-                m_ctx = null;
-            }
+            m_ctx = null;
 
             GC.SuppressFinalize(this);
         }
