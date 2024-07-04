@@ -139,7 +139,7 @@ def mk_z3consts_py_internal(api_files, output_dir):
                     assert False, "Invalid %s, line: %s" % (api_file, linenum)
             else:
                 assert mode == IN_ENUM
-                words = re.split('[^\-a-zA-Z0-9_]+', line)
+                words = re.split('[^-a-zA-Z0-9_]+', line)
                 m = closebrace_pat.match(line)
                 if m:
                     name = words[1]
@@ -227,7 +227,7 @@ def mk_z3consts_dotnet_internal(api_files, output_dir):
                     assert False, "Invalid %s, line: %s" % (api_file, linenum)
             else:
                 assert mode == IN_ENUM
-                words = re.split('[^\-a-zA-Z0-9_]+', line)
+                words = re.split('[^-a-zA-Z0-9_]+', line)
                 m = closebrace_pat.match(line)
                 if m:
                     name = words[1]
@@ -315,7 +315,7 @@ def mk_z3consts_java_internal(api_files, package_name, output_dir):
                     assert False, "Invalid %s, line: %s" % (api_file, linenum)
             else:
                 assert mode == IN_ENUM
-                words = re.split('[^\-a-zA-Z0-9_]+', line)
+                words = re.split('[^-a-zA-Z0-9_]+', line)
                 m = closebrace_pat.match(line)
                 if m:
                     name = words[1]
@@ -441,7 +441,7 @@ def mk_z3consts_ml_internal(api_files, output_dir):
                     assert False, "Invalid %s, line: %s" % (api_file, linenum)
             else:
                 assert mode == IN_ENUM
-                words = re.split('[^\-a-zA-Z0-9_]+', line)
+                words = re.split('[^-a-zA-Z0-9_]+', line)
                 m = closebrace_pat.match(line)
                 if m:
                     name = words[1]
@@ -574,7 +574,7 @@ def mk_def_file_internal(defname, dll_name, export_header_files):
         for line in api:
             m = pat1.match(line)
             if m:
-                words = re.split('\W+', line)
+                words = re.split(r'\W+', line)
                 i = 0
                 for w in words:
                     if w == 'Z3_API':
@@ -618,9 +618,9 @@ def mk_gparams_register_modules_internal(h_files_full_path, path):
     fout  = open(fullname, 'w')
     fout.write('// Automatically generated file.\n')
     fout.write('#include "util/gparams.h"\n')
-    reg_pat = re.compile('[ \t]*REG_PARAMS\(\'([^\']*)\'\)')
-    reg_mod_pat = re.compile('[ \t]*REG_MODULE_PARAMS\(\'([^\']*)\', *\'([^\']*)\'\)')
-    reg_mod_descr_pat = re.compile('[ \t]*REG_MODULE_DESCRIPTION\(\'([^\']*)\', *\'([^\']*)\'\)')
+    reg_pat = re.compile(r'[ \t]*REG_PARAMS\(\'([^\']*)\'\)')
+    reg_mod_pat = re.compile(r'[ \t]*REG_MODULE_PARAMS\(\'([^\']*)\', *\'([^\']*)\'\)')
+    reg_mod_descr_pat = re.compile(r'[ \t]*REG_MODULE_DESCRIPTION\(\'([^\']*)\', *\'([^\']*)\'\)')
     for h_file in sorted_headers_by_component(h_files_full_path):
         added_include = False
         with io.open(h_file, encoding='utf-8', mode='r') as fin:
@@ -672,6 +672,7 @@ def mk_install_tactic_cpp_internal(h_files_full_path, path):
         components.
     """
     ADD_TACTIC_DATA = []
+    ADD_SIMPLIFIER_DATA = []
     ADD_PROBE_DATA = []
     def ADD_TACTIC(name, descr, cmd):
         ADD_TACTIC_DATA.append((name, descr, cmd))
@@ -679,9 +680,13 @@ def mk_install_tactic_cpp_internal(h_files_full_path, path):
     def ADD_PROBE(name, descr, cmd):
         ADD_PROBE_DATA.append((name, descr, cmd))
 
+    def ADD_SIMPLIFIER(name, descr, cmd):
+        ADD_SIMPLIFIER_DATA.append((name, descr, cmd))
+
     eval_globals = {
         'ADD_TACTIC': ADD_TACTIC,
         'ADD_PROBE': ADD_PROBE,
+        'ADD_SIMPLIFIER': ADD_SIMPLIFIER
     }
 
     assert isinstance(h_files_full_path, list)
@@ -691,9 +696,11 @@ def mk_install_tactic_cpp_internal(h_files_full_path, path):
     fout.write('// Automatically generated file.\n')
     fout.write('#include "tactic/tactic.h"\n')
     fout.write('#include "cmd_context/tactic_cmds.h"\n')
+    fout.write('#include "cmd_context/simplifier_cmds.h"\n')
     fout.write('#include "cmd_context/cmd_context.h"\n')
-    tactic_pat   = re.compile('[ \t]*ADD_TACTIC\(.*\)')
-    probe_pat    = re.compile('[ \t]*ADD_PROBE\(.*\)')   
+    tactic_pat   = re.compile(r'[ \t]*ADD_TACTIC\(.*\)')
+    probe_pat    = re.compile(r'[ \t]*ADD_PROBE\(.*\)')
+    simplifier_pat = re.compile(r'[ \t]*ADD_SIMPLIFIER\(.*\)')
     for h_file in sorted_headers_by_component(h_files_full_path):
         added_include = False
         try:
@@ -719,17 +726,31 @@ def mk_install_tactic_cpp_internal(h_files_full_path, path):
                             _logger.error("Failed processing ADD_PROBE command at '{}'\n{}".format(
                                 fullname, line))
                             raise e
+                    if simplifier_pat.match(line):
+                        if not added_include:
+                            added_include = True
+                            fout.write('#include "%s"\n' % path_after_src(h_file))
+                        try:
+                            eval(line.strip('\n '), eval_globals, None)
+                        except Exception as e:
+                            _logger.error("Failed processing ADD_SIMPLIFIER command at '{}'\n{}".format(
+                                fullname, line))
+                            raise e
+                        
         except Exception as e:
            _logger.error("Failed to read file {}\n".format(h_file))
            raise e
     # First pass will just generate the tactic factories
     fout.write('#define ADD_TACTIC_CMD(NAME, DESCR, CODE) ctx.insert(alloc(tactic_cmd, symbol(NAME), DESCR, [](ast_manager &m, const params_ref &p) { return CODE; }))\n')
     fout.write('#define ADD_PROBE(NAME, DESCR, PROBE) ctx.insert(alloc(probe_info, symbol(NAME), DESCR, PROBE))\n')
+    fout.write('#define ADD_SIMPLIFIER_CMD(NAME, DESCR, CODE) ctx.insert(alloc(simplifier_cmd, symbol(NAME), DESCR, [](auto& m, auto& p, auto &s) -> dependent_expr_simplifier* { return CODE; }))\n')
     fout.write('void install_tactics(tactic_manager & ctx) {\n')
     for data in ADD_TACTIC_DATA:
         fout.write('  ADD_TACTIC_CMD("%s", "%s", %s);\n' % data)
     for data in ADD_PROBE_DATA:
         fout.write('  ADD_PROBE("%s", "%s", %s);\n' % data)
+    for data in ADD_SIMPLIFIER_DATA:
+        fout.write('  ADD_SIMPLIFIER_CMD("%s", "%s", %s);\n' % data)
     fout.write('}\n')
     fout.close()
     return fullname
@@ -759,10 +780,10 @@ def mk_mem_initializer_cpp_internal(h_files_full_path, path):
     fullname = os.path.join(path, 'mem_initializer.cpp')
     fout  = open(fullname, 'w')
     fout.write('// Automatically generated file.\n')
-    initializer_pat      = re.compile('[ \t]*ADD_INITIALIZER\(\'([^\']*)\'\)')
+    initializer_pat      = re.compile(r'[ \t]*ADD_INITIALIZER\(\'([^\']*)\'\)')
     # ADD_INITIALIZER with priority
-    initializer_prio_pat = re.compile('[ \t]*ADD_INITIALIZER\(\'([^\']*)\',[ \t]*(-?[0-9]*)\)')
-    finalizer_pat        = re.compile('[ \t]*ADD_FINALIZER\(\'([^\']*)\'\)')
+    initializer_prio_pat = re.compile(r'[ \t]*ADD_INITIALIZER\(\'([^\']*)\',[ \t]*(-?[0-9]*)\)')
+    finalizer_pat        = re.compile(r'[ \t]*ADD_FINALIZER\(\'([^\']*)\'\)')
     for h_file in sorted_headers_by_component(h_files_full_path):
         added_include = False
         with io.open(h_file, encoding='utf-8', mode='r') as fin:
@@ -931,7 +952,7 @@ def mk_hpp_from_pyg(pyg_file, output_dir):
         'UINT_MAX' : UINT_MAX,
         'max_memory_param' : max_memory_param,
         'max_steps_param' : max_steps_param,
-        # Note that once this function is enterred that function
+        # Note that once this function is entered that function
         # executes with respect to the globals of this module and
         # not the globals defined here
         'def_module_params' : def_module_params,
