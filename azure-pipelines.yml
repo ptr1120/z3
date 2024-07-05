@@ -14,6 +14,7 @@ variables:
     - changeset:
       - fixed ast hash table size
       - ci from 4.13.0-8e482df, custom-ci with arm, nuget fixes 
+      - bindings from 4.11.2, but with removed dispose condition (ref-counter) in z3 context
 
 
 # TBD: 
