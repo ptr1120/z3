@@ -75,6 +75,7 @@ set(Z3_DOTNET_ASSEMBLY_SOURCES_IN_SRC_TREE
     FuncInterp.cs
     Global.cs
     Goal.cs
+    IDecRefQueue.cs
     IntExpr.cs
     IntNum.cs
     IntSort.cs

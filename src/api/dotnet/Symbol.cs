@@ -97,7 +97,7 @@ namespace Microsoft.Z3
         }
 
         /// <summary>
-        /// The Symbol's hash code.
+        /// The Symbols's hash code.
         /// </summary>
         /// <returns>A hash code</returns>
         public override int GetHashCode()

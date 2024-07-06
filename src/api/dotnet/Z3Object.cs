@@ -71,15 +71,19 @@ namespace Microsoft.Z3
         internal Z3Object(Context ctx)
         {
             Debug.Assert(ctx != null);
+
+            Interlocked.Increment(ref ctx.refCount);
             m_ctx = ctx;
         }
 
         internal Z3Object(Context ctx, IntPtr obj)
         {
             Debug.Assert(ctx != null);
+
+            Interlocked.Increment(ref ctx.refCount);
             m_ctx = ctx;
-            m_n_obj = obj;
             IncRef(obj);
+            m_n_obj = obj;
         }
 
         internal virtual void IncRef(IntPtr o) { }
@@ -100,7 +104,7 @@ namespace Microsoft.Z3
 
         internal static IntPtr GetNativeObject(Z3Object s)
         {
-            if (s == null) return IntPtr.Zero;
+            if (s == null) return new IntPtr();
             return s.NativeObject;
         }
 
