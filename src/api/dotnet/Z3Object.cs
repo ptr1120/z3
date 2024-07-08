@@ -51,8 +51,25 @@ namespace Microsoft.Z3
             }
 
             m_ctx = null;
+            UpdateMemoryPressure();
 
             GC.SuppressFinalize(this);
+        }
+        
+        public static long TotalAllocatedSizeInBytes { get; private set; }
+        private static void UpdateMemoryPressure()
+        {
+            var currentSize = (long) Native.Z3_get_estimated_alloc_size();
+            var newSize = currentSize - TotalAllocatedSizeInBytes;
+            TotalAllocatedSizeInBytes = currentSize;
+            if (newSize < 0)
+            {
+                GC.RemoveMemoryPressure(-newSize);
+            }
+            else if (newSize > 0)
+            {
+                GC.AddMemoryPressure(newSize);
+            }
         }
 
         #region Object Invariant
@@ -72,18 +89,18 @@ namespace Microsoft.Z3
         {
             Debug.Assert(ctx != null);
 
-            Interlocked.Increment(ref ctx.refCount);
             m_ctx = ctx;
+            UpdateMemoryPressure();
         }
 
         internal Z3Object(Context ctx, IntPtr obj)
         {
             Debug.Assert(ctx != null);
 
-            Interlocked.Increment(ref ctx.refCount);
             m_ctx = ctx;
             IncRef(obj);
             m_n_obj = obj;
+            UpdateMemoryPressure();
         }
 
         internal virtual void IncRef(IntPtr o) { }

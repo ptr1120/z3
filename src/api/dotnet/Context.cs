@@ -4870,22 +4870,22 @@ namespace Microsoft.Z3
             Debug.Assert(m_Optimize_DRQ != null);
         }
 
-        readonly private AST.DecRefQueue m_AST_DRQ = new AST.DecRefQueue();
-        readonly private ASTMap.DecRefQueue m_ASTMap_DRQ = new ASTMap.DecRefQueue(10);
-        readonly private ASTVector.DecRefQueue m_ASTVector_DRQ = new ASTVector.DecRefQueue(10);
-        readonly private ApplyResult.DecRefQueue m_ApplyResult_DRQ = new ApplyResult.DecRefQueue(10);
-        readonly private FuncInterp.Entry.DecRefQueue m_FuncEntry_DRQ = new FuncInterp.Entry.DecRefQueue(10);
-        readonly private FuncInterp.DecRefQueue m_FuncInterp_DRQ = new FuncInterp.DecRefQueue(10);
-        readonly private Goal.DecRefQueue m_Goal_DRQ = new Goal.DecRefQueue(10);
-        readonly private Model.DecRefQueue m_Model_DRQ = new Model.DecRefQueue(10);
-        readonly private Params.DecRefQueue m_Params_DRQ = new Params.DecRefQueue(10);
-        readonly private ParamDescrs.DecRefQueue m_ParamDescrs_DRQ = new ParamDescrs.DecRefQueue(10);
-        readonly private Probe.DecRefQueue m_Probe_DRQ = new Probe.DecRefQueue(10);
-        readonly private Solver.DecRefQueue m_Solver_DRQ = new Solver.DecRefQueue(10);
-        readonly private Statistics.DecRefQueue m_Statistics_DRQ = new Statistics.DecRefQueue(10);
-        readonly private Tactic.DecRefQueue m_Tactic_DRQ = new Tactic.DecRefQueue(10);
-        readonly private Fixedpoint.DecRefQueue m_Fixedpoint_DRQ = new Fixedpoint.DecRefQueue(10);
-        readonly private Optimize.DecRefQueue m_Optimize_DRQ = new Optimize.DecRefQueue(10);
+        readonly private AST.DecRefQueue m_AST_DRQ = new AST.DecRefQueue(0);
+        readonly private ASTMap.DecRefQueue m_ASTMap_DRQ = new ASTMap.DecRefQueue(0);
+        readonly private ASTVector.DecRefQueue m_ASTVector_DRQ = new ASTVector.DecRefQueue(0);
+        readonly private ApplyResult.DecRefQueue m_ApplyResult_DRQ = new ApplyResult.DecRefQueue(0);
+        readonly private FuncInterp.Entry.DecRefQueue m_FuncEntry_DRQ = new FuncInterp.Entry.DecRefQueue(0);
+        readonly private FuncInterp.DecRefQueue m_FuncInterp_DRQ = new FuncInterp.DecRefQueue(0);
+        readonly private Goal.DecRefQueue m_Goal_DRQ = new Goal.DecRefQueue(0);
+        readonly private Model.DecRefQueue m_Model_DRQ = new Model.DecRefQueue(0);
+        readonly private Params.DecRefQueue m_Params_DRQ = new Params.DecRefQueue(0;
+        readonly private ParamDescrs.DecRefQueue m_ParamDescrs_DRQ = new ParamDescrs.DecRefQueue(0);
+        readonly private Probe.DecRefQueue m_Probe_DRQ = new Probe.DecRefQueue(0);
+        readonly private Solver.DecRefQueue m_Solver_DRQ = new Solver.DecRefQueue(0);
+        readonly private Statistics.DecRefQueue m_Statistics_DRQ = new Statistics.DecRefQueue(0);
+        readonly private Tactic.DecRefQueue m_Tactic_DRQ = new Tactic.DecRefQueue(0);
+        readonly private Fixedpoint.DecRefQueue m_Fixedpoint_DRQ = new Fixedpoint.DecRefQueue(0);
+        readonly private Optimize.DecRefQueue m_Optimize_DRQ = new Optimize.DecRefQueue(0);
 
         /// <summary>
         /// AST DRQ
